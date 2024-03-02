@@ -1,0 +1,359 @@
+### Introduction ##############################################################
+In the ever-changing digital marketing landscape, Air France must optimize its Search Engine Marketing (SEM) efforts to stay competitive and drive growth in the United States. Our analysis, led by Rob Griffin, the senior vice president of Media Contacts, aims to unlock the potential of SEM campaigns to increase Air France's market share and profitability. We focus on refining SEM strategies, enhancing campaign effectiveness, and maximizing return on investment. We analyze the data to answer critical questions posed by Griffin, including the effectiveness of uniform versus tailored strategies and the optimization of keywords and campaign tactics. Additionally, we explore collaborating with metasearch platforms to expand Air France's digital footprint and engage diverse consumer segments. This study uses R-based analytics to deliver actionable recommendations to help Air France's SEM initiatives succeed in the dynamic digital landscape.
+
+```{r}
+### Imports and Data Checks ########################################################################
+# Set working directory for the environment building
+setwd("/Users/isabelbanuelos/Documents/HULT/Python/BCII")
+
+# Import datasets for the analysis. 
+```
+Note the excel file was converted outside of R for efficiency. The excel "case_data" was converted in to CVS fileonly considering the tab "training_data" for further analysis.
+
+```{r}
+airfrance <- read.csv("case_data.csv")
+```
+### EDA & DP ###################################################################
+
+Perform Exploratory Data Analysis (EDA) to gain insights into the problem at hand by understanding the dataset for 'AirFrance'.
+
+```{r}
+head(airfrance, 10)
+summary(airfrance, 10)
+tail(airfrance, 10)
+str(airfrance, 10)
+```
+
+The data set contains information about Air France's advertising campaign data which includes information on the keywords, match types, campaigns, bids, clicks, impressions, cost, conversions, and total volume of bookings. At a first glance the data seems to show this data:
+  - The average cost per click is $1.89.
+  - The average conversion rate is 0.53%.
+  - The maximum total volume of bookings is 439.
+
+The data 4,410 rows, with 21 row varying between strings (chr) and numerical (num/int) data. The next step is Data Manipulation (DP), to cleaning the data by removing special characters ('%', ',', '$') to better handle the data.
+
+```{r}
+# Renaming or removing special characters or signs
+airfrance$Search.Engine.Bid    <-gsub("\\$","",airfrance$Search.Engine.Bid)
+airfrance$Click.Charges        <-gsub("\\$","",airfrance$Click.Charges)
+airfrance$Avg..Cost.per.Click  <-gsub("\\$","",airfrance$Avg..Cost.per.Click)
+airfrance$Total.Cost..Trans.   <-gsub("\\$","",airfrance$Total.Cost..Trans.)
+airfrance$Amount               <-gsub("\\$","",airfrance$Amount)
+airfrance$Total.Cost           <-gsub("\\$","",airfrance$Total.Cost)
+airfrance$Search.Engine.Bid    <-gsub(",", "", airfrance$Search.Engine.Bid)
+airfrance$Click.Charges        <-gsub(",", "", airfrance$Click.Charges)
+airfrance$Avg..Cost.per.Click  <-gsub(",", "", airfrance$Avg..Cost.per.Click)
+airfrance$Total.Cost..Trans.   <-gsub(",", "", airfrance$Total.Cost..Trans.)
+airfrance$Amount               <-gsub(",", "", airfrance$Amount)
+airfrance$Total.Cost           <-gsub(",", "", airfrance$Total.Cost)
+airfrance$Engine.Click.Thru..  <-gsub("%","",airfrance$Engine.Click.Thru..)
+airfrance$Trans..Conv...       <-gsub("%","",airfrance$Trans..Conv...)
+
+head(airfrance, 10) #verifying changes made
+```
+After removing special characters, the columns that are numerical data, but are interpret by R as string have to be converted. Using str() function to display data frame structure and count character type columns
+```{r}
+# Display columns that are (chr)
+char_columns       <- sapply(airfrance, is.character)
+char_columns_count <- sum(char_columns)
+print(char_columns_count) # Show results
+
+# Converting datatype from character to numeric, 10 columns will be converted.
+airfrance$Search.Engine.Bid  <-as.numeric(airfrance$Search.Engine.Bid)
+airfrance$Clicks             <-as.numeric(airfrance$Clicks)
+airfrance$Click.Charges      <-as.numeric(airfrance$Click.Charges)
+airfrance$Avg..Cost.per.Click<-as.numeric(airfrance$Avg..Cost.per.Click)
+airfrance$Impressions        <-as.numeric(airfrance$Impressions)
+airfrance$Engine.Click.Thru..<-as.numeric(airfrance$Engine.Click.Thru..)
+airfrance$Trans..Conv...     <-as.numeric(airfrance$Trans..Conv...)
+airfrance$Total.Cost..Trans. <-as.numeric(airfrance$Total.Cost..Trans.)
+airfrance$Amount             <-as.numeric(airfrance$Amount)
+airfrance$Total.Cost         <-as.numeric(airfrance$Total.Cost)
+
+# Verifying the changed object types
+str(airfrance)
+summary(airfrance)
+
+# Renaming columns for easier visualization using marketing acronyms
+colnames(airfrance)<-c("entry_id", "Publisher.Name","Keyword", "Match.Type", "Campaign", 
+"Keyword.Group", "Category", "Bid.Strategy", "Status", "Search.Engine.Bid", 
+"Clicks", "Click.Charges","CPC", "Impressions", "CTR", "Avg.Pos.", "TCR", 
+"Total.Cost.Trans.","Amount", "Total.Cost", "Bookings")
+```
+Missing Values Analysis and Imputation
+```{r}
+# Create a missing map visualization, marking missing values in yellow 
+#install.packages("Amelia")
+library(Amelia)
+missmap(airfrance, main="Air France MKT - Missings Map", 
+        col=c("yellow", "black"), legend=TRUE)
+
+sum(is.na(airfrance)) # There are 1,056 missing values.
+```
+Amelia's missmap function helps visualize missing data patterns within the dataset. Although the missing value map shows that only 1% of the data is missing, this does not consider the values that have been imputed as 0 when the data was transformed.Continuing the exploratory data analysis using GGPlot.
+```{r}
+# Extract only non-string columns
+non_string_cols <- airfrance[sapply(airfrance, function(x) !is.character(x))]
+#print(non_string_cols)
+
+# Calculate base statistics for non-string columns
+summary_stats <- summary(non_string_cols)
+summary_stats
+
+library(ggplot2) # Load the ggplot2 package
+library(reshape2) # Convert data to long format
+
+non_string_cols_long <- melt(non_string_cols)
+
+# Plot histograms with numeric columns
+ggplot(data = non_string_cols_long, aes(x = value, fill =  variable)) +
+  geom_histogram(bins = 20) +
+  facet_wrap(~ variable, scales = "free") +
+  labs(x = "Value", y = "Frequency") +
+  ggtitle("Non-String Variables Distribution")+
+  theme_minimal()+
+  theme(legend.position = "none")
+```
+
+For the histogram depicting the distribution of non-string variables, it appears that a significant portion of the values, although not explicitly designated as missing, cluster around zero. To glean meaningful insights from the dataset, it's crucial to accurately identify and interpret the true zero values for bookings.
+```{r}
+# install.packages("dplyr")
+library(dplyr)
+
+# Create a new data frame for 
+true_air <- airfrance %>%
+  filter(`Bookings` > 0)
+```
+### Data Imputation ############################################################
+```{r}
+# Check the type of each column
+column_types <- sapply(true_air, class)
+
+# Identify columns containing data that are not numeric types or Boolean values
+non_numeric_logical_columns <- names(column_types)[!(column_types %in% c("numeric", "logical"))]
+
+# Display results
+print(non_numeric_logical_columns)
+str(true_air)
+
+# Calculate the number of missing values per column
+na_per_column <- colSums(is.na(true_air))
+print(na_per_column)
+
+sum(is.na(true_air))
+
+# Calculate median per column
+true_air$Clicks[is.na(true_air$Clicks)]          <- median(true_air$Clicks, na.rm = TRUE)
+true_air$Impressions[is.na(true_air$Impressions)]<- median(true_air$Impressions, na.rm = TRUE)
+
+# Calculate the number of missing values per column ; After
+na_per_column <- colSums(is.na(true_air))
+
+# Show results
+print(na_per_column)
+
+summary(true_air, 10)
+
+# Subsetting the dataset for relevant columns to calculate correlation
+new_air <- true_air[, c("Clicks", "Search.Engine.Bid", "Click.Charges", "CPC", "Impressions", "CTR", "Avg.Pos.", "TCR", "Total.Cost.Trans.", "Amount", "Total.Cost", "Bookings")]
+
+
+# Assuming newair_cor is the correlation matrix
+newair_cor <- cor(new_air, use = "complete.obs")  # Adjusted code to include the 'use' argument
+
+# Display the correlation matrix as an image
+# install.packages("corrplot")
+library(corrplot)
+corrplot(newair_cor, method = "color", type = "upper", order = "hclust", 
+         tl.col = "black",      # Color of text labels
+         tl.srt = 120)          # Rotation of text labels, 45 degrees
+```
+
+The graph visualizes the correlation matrix of the dataset through color-coded cells, where warmer colors represent higher correlations. It appears that Bookings have a stronger correlation with CTR and TCR. This makes sense as these metrics are widely used across companies as one of the key deciding factors in digital marketing. We will further investigate the Engine Publishers to determine the best strategy.
+
+### Data Analysis ###############################################################
+```{r}
+# Creating a summary of the  and order by count
+publisher_summary <- true_air %>%
+  group_by(`Publisher.Name`) %>%
+  summarise(Count = n()) %>%
+  arrange(desc(Count))
+
+# Creating a bar chart with the number of adversiments by Publisher Name
+publisher_summary$Publisher.Name <- factor(publisher_summary$Publisher.Name, levels = publisher_summary$Publisher.Name)
+
+# Plotting the Summary of Engine Publishers
+ggplot(publisher_summary, aes(x=Publisher.Name, y=Count)) +
+  geom_bar(stat="identity", fill="steelblue") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle=45, hjust=1, size=12), 
+        axis.title.x = element_blank(), 
+        axis.text.y = element_text(size=12)) +
+  labs(title="Number of Ads by Publisher Name", x="", y="Count")  
+```
+This graph displays the number of ads attributed to each publisher. The bars represent the counts and are colored in steel blue. The x-axis lists the publisher names while the y-axis denotes the count of ads. This comparison of advertising activity among different publishers shows that Google is the engine publisher with the highest number of ads, followed by Overturn, Yahoo, and MSN. However, we need to look at other metrics to determine the effectiveness of ads invested for each publisher.
+
+```{r}
+# Feature Engineering Marketing KPIs
+true_air$Net.Revenue             <- true_air$Amount - true_air$Total.Cost # Calculating Net Revenue
+true_air$ROA                     <- true_air$Net.Revenue / true_air$Total.Cost # Return on Ad Spent - ROA
+true_air$ATV                     <- true_air$Amount / true_air$Bookings # Average Revenue per Booking or Average Transaction Value (ATV) 
+true_air$PoA                     <- (true_air$Clicks / true_air$Impressions) * (true_air$Bookings / true_air$Clicks) # Probability of Booking or Probability of Action
+true_air$CPA                     <- true_air$Total.Cost / true_air$Bookings # Cost per Booking or Acquisition (CPA) 
+
+# Summarize data for Engine Publishers with relevant KPIs
+Engine_Publishers_summary <- true_air %>%
+  group_by(`Publisher.Name`) %>%
+  summarise(
+    Sum_Total_Bookings = sum(Bookings, na.rm = TRUE),
+    Sum_Net_Revenue = sum(Net.Revenue, na.rm = TRUE),
+    Sum_Click_Charges = sum(Click.Charges, na.rm = TRUE),
+    ROAS = sum(Net.Revenue) / sum(Total.Cost),
+    Sum_PoA = sum(CTR * TCR) / 10000,
+    Sum_CPA = sum(Total.Cost) / sum(Bookings),
+    Sum_Total_Cost = sum(Total.Cost),
+    Avg_CPC = mean(CPC, na.rm = TRUE),
+    Avg_Amount_Booking = mean(Amount, na.rm = TRUE)
+  )
+
+Engine_Publishers_summary
+```
+The data in the table indicates that Google's US operations generate higher net revenue and total bookings despite higher costs. Interestingly, Google and Overturn perform better than their global counterparts, highlighting the effectiveness of localized marketing strategies. However, Overturn has a low probability of indicating that costs will increase with the number of ads invested.
+
+```{r}
+# Create scatter plot
+ggplot(Engine_Publishers_summary, aes(x = Avg_CPC, 
+                                      y = Sum_PoA, 
+                                      color = `Publisher.Name`, 
+                                      size = ROAS)) +
+  geom_point() +
+  labs(title = "CPC vs. PoA by Engine Publisher",
+       x = "Average Cost per Click",
+       y = "Probability of Booking") +
+  scale_size_continuous(name = "ROAs") +  
+  theme_minimal() +
+  theme(legend.position = "right")
+```
+
+The graph depicts various engine publishers, with the size of the points indicating the return on advertising spend (ROAS). The x-axis shows the average cost per click (CPC), while the y-axis represents the probability of booking (PoA).
+
+The results suggest that Google US offers the highest chances of booking and return on investment (ROA), despite its higher prices. To reduce costs for this publisher, we can adjust bidding strategies, match types, keyword selection, or positioning. On the other hand, we may consider discontinuing our investment in Overturn since they have a low probability of booking and a very high cost per acquisition. Instead, we should prioritize the publisher engine with the highest ROAS, which in this case is Yahoo with a score of 24.4 and the highest probability of conversions per impression. It presents an ideal target for increased investment. Successful strategies for campaigns with high ROA can be replicated in future campaigns.
+
+Having a startegy for the Publisher Engines, the next stage is to determine the keywords that the company should prioritize.
+
+```{r}
+# Keyword Map Cloud
+# install.packages("wordcloud2")
+library(wordcloud2) 
+library(dplyr)
+
+# Calculate the frequency of keyword groups.
+keyword_group_counts <- true_air %>%
+  filter(Keyword.Group != "unassigned") %>%  # Remove "unassigned" keyword groups
+  count(Keyword.Group) %>%
+  arrange(desc(n))  # Arrange in descending order of count
+
+# Convert keyword group counts to data frame with 'word' and 'freq' columns
+wordcloud_data <- keyword_group_counts %>%
+  slice_max(order_by = n, n = 50)  # Select the top 50 keyword groups
+
+# Plot the word cloud using wordcloud2
+wordcloud2(wordcloud_data, size = 0.5, shape = 'circle')
+```
+
+Using Wordcloud, we can generate a compelling visual representation of the keyword group. Upon analysis, it's clear that the majority of the keywords are labeled as "Unassigned," indicating that they don't fit neatly into a specific category. Additionally, there are numerous words directly related to the brand name.
+
+```{r}
+# Evaluate keywords by our most relevant KPIs, ROA and PoA
+roa_percentile_90 <- quantile(true_air$ROA,  0.90, na.rm = TRUE)
+pob_percentile_90 <- quantile(true_air$PoA,  0.90, na.rm = TRUE)
+
+# Filter keywords with ROA or PoA above the 90th percentile (most common/best ones)
+high_roa_keywords <- true_air[true_air$ROA > roa_percentile_90, ]
+high_pob_keywords <- true_air[true_air$PoA > pob_percentile_90, ]
+
+# Summarize high ROA keywords
+summary_high_roa <- high_roa_keywords %>%
+  group_by(Keyword) %>%
+  summarise(Count = n(), ROA = mean(ROA, na.rm = TRUE)) %>%
+  arrange(desc(ROA))
+
+# Summarize high PoA keywords
+summary_high_pob <- high_pob_keywords %>%
+  group_by(Keyword) %>%
+  summarise(Count = n(), PoA = mean(PoA, na.rm = TRUE)) %>%
+  arrange(desc(PoA))
+
+# Plotting a bar graph to compare the keywords
+# Summary of Keywords with high ROA
+ggplot(summary_high_roa, aes(x = reorder(Keyword, `ROA`), y = `ROA`)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  coord_flip() +
+  labs(title = "ROA for High ROA Keywords", x = "Keyword", y = "ROA")
+
+# Summary of Keywords with high Probability of Acquisition
+ggplot(summary_high_pob, aes(x = reorder(Keyword, `PoA`), y = `PoA`)) +
+  geom_bar(stat = "identity", fill = "orange") +
+  coord_flip() +
+  labs(title = "PoA for High PoA Keywords", x = "Keyword", y = "PoA")
+
+# Provide additional confirmation by identify top 10 keywords by TCR
+top_conversion_rate_keywords <- true_air %>%
+  arrange(desc(TCR)) %>%
+  head(10)
+
+# Identify top 10 keywords by ROAS
+top_roas_keywords <- true_air %>%
+  arrange(desc(ROA)) %>%
+  head(10)
+
+# Display the results
+print("Top 10 Keywords by Conversion Rate:")
+print(top_conversion_rate_keywords[,c('Keyword', 'TCR')])
+
+print("Top 10 Keywords by ROAS:")
+print(top_roas_keywords[,c('Keyword', 'ROA')])
+```
+Upon analyzing the keywords that stood out, we have found that apart from mentioning the brand name, the words categorized under the flight to Italy or Florence have resulted in better ROA and TCR, leading to an increase in bookings. We suggest that the company invests in an exact match for [airfrance] and make additional investments in low international airfare, specifically targeting flights to Italy. Moreover, the company could consider introducing a direct flight from New York to Italy.
+
+Since Yahoo is the search engine Air France should invest in, according to prior analysis and results. 
+
+```{r}
+# Creating a graph visualization to see the top 10 keywords to use on 
+# Yahoo to get the best ROAS.
+yahoo_data <- true_air[true_air$Publisher.Name == "Yahoo - US", ]
+
+# Calculate ROAS for each keyword and select the top 10
+top_yahoo_keywords_roas <- yahoo_data %>%
+  group_by(Keyword) %>%
+  summarise(Total_ROAS = sum(Net.Revenue) / sum(Total.Cost)) %>%
+  arrange(desc(Total_ROAS)) %>%
+  slice(1:10)  # Select top 10
+
+# Plotting the top 10 ROAS keywords for Yahoo
+ggplot(top_yahoo_keywords_roas, aes(x = reorder(Keyword, Total_ROAS), y = Total_ROAS)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  coord_flip() +  # Flip coordinates to make it easier to read keywords
+  labs(title = "Top 10 Keywords by ROAS on Yahoo", x = "ROAS", y = "Keyword") +
+  theme_minimal()
+
+```
+This third graph results align with the findings we already had, 
+reinforcing the decision to invest in these keywords.
+
+###############################################################################
+### Conclusion ################################################################
+Based on this analysis we recommend a tailored strategy for Air France across search engine publishers rather than a uniform approach. The analysis indicates significant variations in performance metrics across different publishers, highlighting that each platform has unique strengths and audience demographics. By customizing strategies for each publisher, Air France can maximize their return on investment by capitalizing on these differences and effectively targeting specific audience segments.
+
+To increase overall value from investment with a search engine publisher, campaigns can be improved by making strategic adjustments. This includes optimizing keywords to enhance relevance and targeting, evaluating the performance of existing keywords, and adjusting campaign tactics or copy to improve engagement and conversion rates. By leveraging insights from campaign metrics and key performance indicators (KPIs), Air France can identify areas for improvement and refine its SEM strategies to achieve better outcomes.
+
+The most important KPIs for evaluating campaign effectiveness include Return on Advertising Spend (ROAS), Probability of Booking (PoA), Click-Through Rate (CTR), and Total Volume of Bookings. Campaign changes should aim to positively impact these KPIs by optimizing advertising spend efficiency, increasing conversion rates, and driving higher booking volumes. Monitoring these metrics closely allows for iterative improvements and informed decision-making in future SEM campaigns.
+
+
+###############################################################################
+### References ################################################################
+1. Jeffery, M., Egli, L., Gieraltowski, A., Lambert, J. L., Miller, J. I., Neely, L., & Sharma, R. (2017). Air France Internet Marketing: Optimizing Google, Yahoo!, MSN, and Kayak sponsored search. Kellogg School of Management Cases, 1–18. https://doi.org/10.1108/case.kellogg.2016.000012
+2. Free Keyword Research Tool from Wordtracker. (n.d.). https://www.wordtracker.com/
+3. OpenAI. (2024). ChatGPT (3.5) [Large language model]. https://chat.openai.com/c/206c0dbe-beab-425e-bc4c-b98ae9622868
+4. Premaratne, M. (2023, November 15). What is KEI (Keyword Efficiency Index) in SEO? - Madusanka Premaratne - Medium. Medium. https://madusanka.medium.com/what-is-kei-keyword-efficiency-index-in-seo-8d577e516c6a
+5. Digital Marketing Institute. Digital strategy and business opportunity. (2021, October 8). Coursera. https://www.coursera.org/learn/digital-strategy-business-opportunity
+6. Holtz, Y. (n.d.). WordCloud | The R Graph Gallery. https://r-graph-gallery.com/wordcloud.html
