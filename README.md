@@ -1,1 +1,3 @@
 # Data_Driven_Marketing
+
+Air France is looking to enhance its SEM campaigns in the US to boost market share and profits. They're exploring whether a uniform approach across search engines or tailored strategies would work better. The analysis will focus on optimizing keywords, adjusting tactics, and evaluating key performance indicators' impact on future strategies. Additionally, they're considering partnering with metasearch platforms like Kayak alongside traditional search engines. The aim is to provide useful insights and recommendations through R and Python analysis to improve SEM campaign effectiveness.
